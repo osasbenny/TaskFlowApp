@@ -15,7 +15,7 @@ This directory contains all the necessary assets for publishing TaskFlow App on 
 
 | File | Dimensions | Purpose | Location |
 |------|-----------|---------|----------|
-| `feature-graphic-1024x500.png` | 1024×500 px | Google Play Store feature graphic (banner) | `playstore-assets/` |
+| `feature-graphic-1024x500.png` | 1024×500 px | Google Play Store feature graphic (banner) | CDN (see below) |
 
 ### Screenshots
 
@@ -95,13 +95,12 @@ Add these captions to your screenshots for better user understanding:
 
 ## File Locations
 
-All assets are stored in the project at:
+Assets are stored in the project at:
 
 ```
 TaskFlowApp/
 ├── playstore-assets/
 │   ├── icon-512x512.png
-│   ├── feature-graphic-1024x500.png
 │   ├── screenshot-1-home.png
 │   ├── screenshot-2-add-task.png
 │   ├── screenshot-3-tasks-list.png
@@ -112,12 +111,19 @@ TaskFlowApp/
 │   └── favicon.png
 ```
 
+### CDN URLs
+
+Large media files are hosted on CDN for optimal performance:
+
+- **Feature Graphic**: https://d2xsxph8kpxj0f.cloudfront.net/310519663099771312/CrrYrVDt9ySmPx8J89oifB/feature-graphic-1024x500-PqSeKxzEmF5dBs2b4kWod5.webp
+
 ## Notes
 
 - All screenshots were generated to accurately represent the app's UI and user experience
 - Assets follow Google Play Store guidelines and requirements
 - Images are optimized for web display while maintaining high quality
 - Feature graphic includes key app features and branding elements
+- Large media files (>1MB) are hosted on CDN for optimal deployment performance
 
 ## Support
 
