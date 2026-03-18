@@ -42,11 +42,13 @@ const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
   version: "1.0.0",
+
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
+  sdkVersion: "54.0.0",
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
@@ -117,6 +119,8 @@ const config: ExpoConfig = {
         android: {
           buildArchs: ["armeabi-v7a", "arm64-v8a"],
           minSdkVersion: 24,
+          targetSdkVersion: 35,
+          compileSdkVersion: 35,
         },
       },
     ],
