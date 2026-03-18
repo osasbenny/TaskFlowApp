@@ -1,248 +1,367 @@
 /**
  * TaskFlow App - Add/Edit Task Screen
- * Form for creating and editing tasks
+ * Premium form for creating and editing tasks
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Pressable,
   Text,
-  Platform,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  Switch,
+  Alert,
 } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
-import { Input } from '@/src/components/Input';
-import { Button } from '@/src/components/Button';
 import { useTaskStore } from '@/src/store/taskStore';
 import { Priority } from '@/src/types';
-import {
-  getTodayDateString,
-  getCurrentTimeString,
-  isValidReminderDateTime,
-} from '@/src/utils/dateUtils';
 
 const PRIORITIES: Priority[] = ['low', 'medium', 'high'];
 
 export default function AddTaskScreen() {
   const colors = useColors();
+  const router = useRouter();
+  const params = useLocalSearchParams();
   const store = useTaskStore();
 
-  // Form state
-  const [title, setTitle] = useState('');
-  const [notes, setNotes] = useState('');
-  const [category, setCategory] = useState('Personal');
-  const [priority, setPriority] = useState<Priority>('medium');
-  const [dueDate, setDueDate] = useState(getTodayDateString());
-  const [dueTime, setDueTime] = useState(getCurrentTimeString());
-  const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const taskId = params.taskId as string | undefined;
+  const existingTask = taskId ? store.getTaskById(taskId) : null;
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
+  const [title, setTitle] = useState(existingTask?.title || '');
+  const [priority, setPriority] = useState<Priority>(
+    (existingTask?.priority as Priority) || 'medium'
+  );
+  const [category, setCategory] = useState(existingTask?.category || 'Personal');
+  const [dueDate, setDueDate] = useState(existingTask?.dueDate || '');
+  const [dueTime, setDueTime] = useState(existingTask?.dueTime || '09:00');
+  const [notes, setNotes] = useState(existingTask?.notes || '');
+  const [hasReminder, setHasReminder] = useState(existingTask?.reminderEnabled || false);
 
+  const categories = store.getCategories();
+
+  const handleSave = () => {
     if (!title.trim()) {
-      newErrors.title = 'Title is required';
+      Alert.alert('Error', 'Please enter a task title');
+      return;
     }
 
-    if (reminderEnabled && !isValidReminderDateTime(dueDate, dueTime)) {
-      newErrors.reminder = 'Reminder must be set to a future date and time';
+    if (existingTask) {
+      // Update existing task
+      store.updateTask(existingTask.id, {
+        title,
+        notes,
+        priority,
+        category,
+        dueDate,
+        dueTime,
+        reminderEnabled: hasReminder,
+      });
+    } else {
+      // Create new task
+      store.addTask({
+        title,
+        notes,
+        priority,
+        category,
+        dueDate,
+        dueTime,
+        reminderEnabled: hasReminder,
+        completed: false,
+      });
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    router.back();
   };
 
-  const handleSave = async () => {
-    if (!validateForm()) return;
+  const handleDelete = () => {
+    if (existingTask) {
+      Alert.alert(
+        'Delete Task',
+        'Are you sure you want to delete this task?',
+        [
+          { text: 'Cancel', onPress: () => {} },
+          {
+            text: 'Delete',
+            onPress: () => {
+              store.deleteTask(existingTask.id);
+              router.back();
+            },
+            style: 'destructive',
+          },
+        ]
+      );
+    }
+  };
 
-    const taskData = {
-      title: title.trim(),
-      notes: notes.trim() || undefined,
-      category,
-      priority,
-      dueDate,
-      dueTime,
-      reminderEnabled,
-      completed: false,
-    };
-
-    await store.addTask(taskData as any);
-    console.log('Task saved, navigate back');
+  const handleCancel = () => {
+    router.back();
   };
 
   return (
     <ScreenContainer className="flex-1 bg-background">
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          Add Task
-        </Text>
-
-        {/* Title Input */}
-        <Input
-          label="Title *"
-          placeholder="What needs to be done?"
-          value={title}
-          onChangeText={setTitle}
-          error={errors.title}
-        />
-
-        {/* Notes Input */}
-        <Input
-          label="Notes"
-          placeholder="Add details..."
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-          numberOfLines={4}
-        />
-
-        {/* Category Selector */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.foreground }]}>
-            Category
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+            {existingTask ? 'Edit Task' : 'Create Task'}
           </Text>
-          <View style={styles.categoryButtons}>
-            {['Personal', 'Work', 'Shopping', 'Health', 'Study'].map((cat) => (
-              <Pressable
-                key={cat}
-                onPress={() => setCategory(cat)}
-                style={[
-                  styles.categoryButton,
-                  {
-                    backgroundColor:
-                      category === cat ? colors.primary : colors.surface,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
+        </View>
+
+        {/* Form Content */}
+        <View style={styles.formContainer}>
+          {/* Title Field */}
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              Task Title *
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+              placeholder="Enter task title"
+              placeholderTextColor={colors.muted}
+              value={title}
+              onChangeText={setTitle}
+            />
+          </View>
+
+          {/* Notes Field */}
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              Notes
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                styles.textArea,
+                {
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+              placeholder="Add task details..."
+              placeholderTextColor={colors.muted}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          {/* Priority Selection */}
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              Priority
+            </Text>
+            <View style={styles.priorityContainer}>
+              {PRIORITIES.map((p) => (
+                <Pressable
+                  key={p}
+                  onPress={() => setPriority(p)}
                   style={[
-                    styles.categoryButtonText,
+                    styles.priorityButton,
                     {
-                      color:
-                        category === cat ? colors.background : colors.foreground,
+                      backgroundColor:
+                        priority === p ? colors.primary : colors.surface,
+                      borderColor: colors.border,
                     },
                   ]}
                 >
-                  {cat}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.priorityText,
+                      {
+                        color: priority === p ? 'white' : colors.foreground,
+                      },
+                    ]}
+                  >
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
-        </View>
 
-        {/* Priority Selector */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.foreground }]}>
-            Priority
-          </Text>
-          <View style={styles.priorityButtons}>
-            {PRIORITIES.map((p) => (
-              <Pressable
-                key={p}
-                onPress={() => setPriority(p)}
-                style={[
-                  styles.priorityButton,
-                  {
-                    backgroundColor:
-                      priority === p ? colors.primary : colors.surface,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
+          {/* Category Selection */}
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              Category
+            </Text>
+            <View style={styles.categoryContainer}>
+              {categories.map((cat) => (
+                <Pressable
+                  key={cat.id}
+                  onPress={() => setCategory(cat.name)}
                   style={[
-                    styles.priorityButtonText,
+                    styles.categoryButton,
                     {
-                      color:
-                        priority === p ? colors.background : colors.foreground,
+                      backgroundColor:
+                        category === cat.name ? colors.primary : colors.surface,
+                      borderColor: colors.border,
                     },
                   ]}
                 >
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      {
+                        color: category === cat.name ? 'white' : colors.foreground,
+                      },
+                    ]}
+                  >
+                    {cat.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Due Date Field */}
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              Due Date
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.muted}
+              value={dueDate}
+              onChangeText={setDueDate}
+            />
+          </View>
+
+          {/* Reminder Toggle */}
+          <View style={styles.formGroup}>
+            <View style={styles.reminderHeader}>
+              <Text style={[styles.label, { color: colors.foreground }]}>
+                Set Reminder
+              </Text>
+              <Switch
+                value={hasReminder}
+                onValueChange={setHasReminder}
+                trackColor={{ false: colors.border, true: colors.primary }}
+              />
+            </View>
+
+            {hasReminder && (
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: colors.foreground,
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface,
+                  },
+                ]}
+                placeholder="HH:MM"
+                placeholderTextColor={colors.muted}
+                value={dueTime}
+                onChangeText={setDueTime}
+              />
+            )}
           </View>
         </View>
 
-        {/* Reminder Toggle */}
-        <View
-          style={[
-            styles.reminderSection,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-        >
-          <View>
-            <Text style={[styles.reminderLabel, { color: colors.foreground }]}>
-              Enable Reminder
+        {/* Action Buttons */}
+        <View style={styles.buttonContainer}>
+          <Pressable
+            onPress={handleCancel}
+            style={[
+              styles.button,
+              styles.secondaryButton,
+              { borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.buttonText, { color: colors.foreground }]}>
+              Cancel
             </Text>
-            <Text style={[styles.reminderDescription, { color: colors.muted }]}>
-              Get notified at the scheduled time
+          </Pressable>
+
+          <Pressable
+            onPress={handleSave}
+            style={[
+              styles.button,
+              styles.primaryButton,
+              { backgroundColor: colors.primary },
+            ]}
+          >
+            <Text style={[styles.buttonText, { color: 'white' }]}>
+              {existingTask ? 'Update' : 'Create'} Task
             </Text>
-          </View>
-          <Switch
-            value={reminderEnabled}
-            onValueChange={setReminderEnabled}
-            trackColor={{ false: colors.border, true: colors.primary }}
-          />
+          </Pressable>
         </View>
 
-        {errors.reminder && (
-          <Text style={[styles.error, { color: colors.error }]}>
-            {errors.reminder}
-          </Text>
+        {/* Delete Button (for existing tasks) */}
+        {existingTask && (
+          <Pressable
+            onPress={handleDelete}
+            style={[styles.deleteButton, { backgroundColor: '#EF4444' }]}
+          >
+            <Text style={[styles.deleteButtonText, { color: 'white' }]}>
+              Delete Task
+            </Text>
+          </Pressable>
         )}
-
-        {/* Save Button */}
-        <Button
-          title="Create Task"
-          onPress={handleSave}
-          style={styles.saveButton}
-        />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
+  header: {
     paddingHorizontal: 16,
     paddingVertical: 20,
-    gap: 16,
+    borderBottomWidth: 1,
   },
-  title: {
+  headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    marginBottom: 8,
   },
-  section: {
+  formContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    gap: 20,
+  },
+  formGroup: {
     gap: 8,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
   },
-  categoryButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+  input: {
     borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
   },
-  categoryButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
+  textArea: {
+    textAlignVertical: 'top',
+    minHeight: 100,
   },
-  priorityButtons: {
+  priorityContainer: {
     flexDirection: 'row',
     gap: 8,
   },
@@ -253,34 +372,66 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
   },
-  priorityButtonText: {
+  priorityText: {
     fontSize: 13,
     fontWeight: '600',
   },
-  reminderSection: {
+  categoryContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  categoryButton: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reminderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     gap: 12,
   },
-  reminderLabel: {
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+  },
+  buttonText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  reminderDescription: {
-    fontSize: 12,
-    marginTop: 2,
+  deleteButton: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  error: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  saveButton: {
-    marginTop: 8,
-    marginBottom: 32,
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

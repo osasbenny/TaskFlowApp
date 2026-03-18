@@ -1,9 +1,10 @@
 /**
  * TaskFlow App - Home Screen
- * Main dashboard with task summary and quick access
+ * Premium dashboard with task summary and quick actions
  */
 
 import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -12,7 +13,9 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
+  RefreshControl,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { TaskCard } from '@/src/components/TaskCard';
@@ -24,10 +27,19 @@ const FILTER_CHIPS = ['Today', 'Upcoming', 'All', 'Completed'];
 
 export default function HomeScreen() {
   const colors = useColors();
+  const router = useRouter();
   const store = useTaskStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('Today');
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Refresh data when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshing(true);
+      setTimeout(() => setRefreshing(false), 500);
+    }, [])
+  );
 
   // Get tasks based on active filter
   const getFilteredTasks = useCallback(() => {
@@ -50,24 +62,42 @@ export default function HomeScreen() {
   const stats = store.getTaskStats();
 
   const handleAddTask = () => {
-    // Navigate to add task screen
-    console.log('Add task');
+    router.push('/add-task');
   };
 
   const handleTaskPress = (task: Task) => {
-    setSelectedTask(task);
+    router.push({
+      pathname: '/add-task',
+      params: { taskId: task.id },
+    });
   };
+
+
+
+  const handleTaskDelete = (taskId: string) => {
+    store.deleteTask(taskId);
+  };
+
+
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 500);
+  }, []);
 
   return (
     <ScreenContainer className="flex-1 bg-background">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Text style={[styles.greeting, { color: colors.foreground }]}>
-            TaskFlow App
+            TaskFlow
           </Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
             Stay organized and productive
@@ -84,12 +114,12 @@ export default function HomeScreen() {
           <StatCard
             label="Upcoming"
             value={stats.upcomingTasks}
-            color={colors.warning}
+            color="#F59E0B"
           />
           <StatCard
             label="Completed"
             value={stats.completedTasks}
-            color={colors.success}
+            color="#22C55E"
           />
         </View>
 
