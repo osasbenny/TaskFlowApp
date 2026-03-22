@@ -3,13 +3,15 @@
  * Helper functions for date and time operations
  */
 
-import { v4 as uuidv4 } from 'uuid';
-
 /**
- * Generate a unique ID
+ * Generate a unique ID using a simple algorithm that works on all platforms
+ * (including web/Expo where crypto.getRandomValues() may not be available)
  */
 export function generateId(): string {
-  return uuidv4();
+  const timestamp = Date.now().toString(36);
+  const randomStr = Math.random().toString(36).substring(2, 15);
+  const randomStr2 = Math.random().toString(36).substring(2, 15);
+  return `${timestamp}-${randomStr}-${randomStr2}`;
 }
 
 /**
